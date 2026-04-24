@@ -77,7 +77,7 @@ It helps users add, edit, and delete expenses with data stored in **localStorage
 
 ## 👨‍💻 Author
 
-Your Name
+Vinay Chauhan
 
 ---
 
