@@ -1,15 +1,24 @@
-let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+const API_URL = 'http://localhost:3000/expenses';
+let expenses = [];
 let editId = null;
-
-function saveToLocalStorage() {
-    localStorage.setItem('expenses', JSON.stringify(expenses));
-}
 
 function showError(show) {
     document.getElementById('errorMsg').classList.toggle('d-none', !show);
 }
 
-function addExpense() {
+// 1. Fetch expenses from Backend on page load
+window.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const response = await axios.get(API_URL);
+        expenses = response.data.expenses;
+        displayExpenses();
+    } catch (error) {
+        console.error('Error fetching expenses:', error);
+    }
+});
+
+// 2. Add Expense (POST to Backend)
+async function addExpense() {
     const amount = document.getElementById('amount').value;
     const description = document.getElementById('description').value;
     const category = document.getElementById('category').value;
@@ -21,19 +30,22 @@ function addExpense() {
 
     showError(false);
 
-    const expense = {
-        id: Date.now(),
-        amount: parseFloat(amount),
-        description,
-        category
-    };
+    try {
+        const response = await axios.post(API_URL, {
+            amount: parseFloat(amount),
+            description,
+            category
+        });
 
-    expenses.push(expense);
-    saveToLocalStorage();
-    displayExpenses();
-    clearFields();
+        expenses.push(response.data.expense);
+        displayExpenses();
+        clearFields();
+    } catch (error) {
+        console.error('Error adding expense:', error);
+    }
 }
 
+// 3. Edit Expense UI setup
 function editExpense(id) {
     const exp = expenses.find(e => e.id === id);
     if (!exp) return;
@@ -51,7 +63,8 @@ function editExpense(id) {
     showError(false);
 }
 
-function updateExpense() {
+// 4. Update Expense (PUT to Backend)
+async function updateExpense() {
     const amount = document.getElementById('amount').value;
     const description = document.getElementById('description').value;
     const category = document.getElementById('category').value;
@@ -63,21 +76,19 @@ function updateExpense() {
 
     showError(false);
 
-    expenses = expenses.map(exp => {
-        if (exp.id === editId) {
-            return {
-                ...exp,
-                amount: parseFloat(amount),
-                description,
-                category
-            };
-        }
-        return exp;
-    });
+    try {
+        const response = await axios.put(`${API_URL}/${editId}`, {
+            amount: parseFloat(amount),
+            description,
+            category
+        });
 
-    saveToLocalStorage();
-    displayExpenses();
-    cancelEdit();
+        expenses = expenses.map(exp => (exp.id === editId ? response.data.expense : exp));
+        displayExpenses();
+        cancelEdit();
+    } catch (error) {
+        console.error('Error updating expense:', error);
+    }
 }
 
 function cancelEdit() {
@@ -90,17 +101,22 @@ function cancelEdit() {
     document.getElementById('cancelBtn').classList.add('d-none');
 }
 
-function deleteExpense(id) {
+// 5. Delete Expense (DELETE to Backend)
+async function deleteExpense(id) {
     if (!confirm('Delete this expense?')) return;
 
-    expenses = expenses.filter(exp => exp.id !== id);
+    try {
+        await axios.delete(`${API_URL}/${id}`);
+        expenses = expenses.filter(exp => exp.id !== id);
 
-    if (editId === id) {
-        cancelEdit();
+        if (editId === id) {
+            cancelEdit();
+        }
+
+        displayExpenses();
+    } catch (error) {
+        console.error('Error deleting expense:', error);
     }
-
-    saveToLocalStorage();
-    displayExpenses();
 }
 
 function clearFields() {
@@ -132,11 +148,11 @@ function displayExpenses() {
         li.className = 'list-group-item d-flex justify-content-between align-items-center';
         li.innerHTML = `
             <div>
-                <strong>₹${exp.amount.toFixed(2)}</strong> - ${exp.description}
+                <strong>₹${Number(exp.amount).toFixed(2)}</strong> - ${exp.description}
                 <span class="badge bg-secondary">${exp.category}</span>
             </div>
             <div>
-                <button class="btn btn-sm btn-info" onclick="editExpense(${exp.id})">Edit</button>
+                <button class="btn btn-sm btn-info text-white" onclick="editExpense(${exp.id})">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteExpense(${exp.id})">Delete</button>
             </div>
         `;
@@ -145,5 +161,3 @@ function displayExpenses() {
 
     totalDisplay.innerText = total.toFixed(2);
 }
-
-displayExpenses();
